@@ -256,6 +256,28 @@ impl TouchControls {
         actions
     }
 
+    pub(super) fn cancel_all(&mut self) -> Vec<Action> {
+        let mut actions = Vec::new();
+        for (_, contact) in self.contacts.drain() {
+            match contact {
+                Contact::Button(control) => {
+                    if let Some(action) = Self::button_action(control, false) {
+                        actions.push(action);
+                    }
+                }
+                Contact::Stick(keys) => {
+                    actions.extend(keys.into_iter().map(|key| Action::Key(key, false)));
+                }
+                Contact::Drag(_) | Contact::Look(_) => {}
+            }
+        }
+        actions
+    }
+
+    pub(super) fn clear_contacts(&mut self) {
+        self.contacts.clear();
+    }
+
     pub(super) fn draw(&self, batch: &mut HudBatch, atlas: &HudAtlas) {
         let (w, h) = (batch.width, batch.height);
         let base = rgba(20, 24, 30, if self.editing { 190 } else { 115 });
@@ -288,6 +310,14 @@ impl TouchControls {
 impl super::Game<'_> {
     pub(super) fn handle_touch(&mut self, touch: Touch) -> horizon_client::Result<()> {
         if self.screen != super::Screen::Playing || self.title.is_some() || self.player.is_none() {
+            let actions = self.touch.cancel_all();
+            for action in actions {
+                match action {
+                    Action::Key(key, pressed) => self.mapped_key_event(key, pressed, false)?,
+                    Action::Mouse(button, pressed) => self.play_mouse(button, pressed)?,
+                    Action::Look(_, _) => {}
+                }
+            }
             return Ok(());
         }
         let Some(renderer) = self.renderer.as_ref() else { return Ok(()); };
