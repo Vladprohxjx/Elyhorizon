@@ -209,8 +209,9 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             fov: 70.0,
-            render_distance: 12,
-            simulation_distance: 12,
+            // A conservative first-run profile for phones; existing options.txt values still win.
+            render_distance: if cfg!(target_os = "android") { 8 } else { 12 },
+            simulation_distance: if cfg!(target_os = "android") { 6 } else { 12 },
             sensitivity: 0.5,
             master_volume: 1.0,
             volumes: [1.0; 11],
@@ -220,19 +221,24 @@ impl Default for Settings {
             gamma: 0.5,
             // Vanilla's default, as for an options.txt without the key: a
             // capped frame rate leaves the cores idle when VSync is off.
-            max_fps: 120,
+            max_fps: if cfg!(target_os = "android") { 60 } else { 120 },
             vsync: true,
             fullscreen: false,
             smooth_lighting: true,
-            clouds: "true".into(),
+            clouds: if cfg!(target_os = "android") { "false" } else { "true" }.into(),
             cloud_range: 128,
-            particles: 0,
-            entity_distance: 1.0,
-            entity_shadows: true,
-            biome_blend: 2,
-            graphics_preset: "fancy".into(),
-            mipmap_levels: 4,
-            weather_radius: 10,
+            particles: if cfg!(target_os = "android") { 2 } else { 0 },
+            entity_distance: if cfg!(target_os = "android") { 0.5 } else { 1.0 },
+            entity_shadows: !cfg!(target_os = "android"),
+            biome_blend: if cfg!(target_os = "android") { 0 } else { 2 },
+            graphics_preset: (if cfg!(target_os = "android") {
+                "fast"
+            } else {
+                "fancy"
+            })
+            .into(),
+            mipmap_levels: if cfg!(target_os = "android") { 2 } else { 4 },
+            weather_radius: if cfg!(target_os = "android") { 3 } else { 10 },
             chunk_fade: 0.75,
             vignette: true,
             autosave_indicator: true,
@@ -280,7 +286,17 @@ impl Default for Settings {
             operator_items_tab: false,
             quit_shortcuts: true,
             ctrl_click_emulates_right_click: false,
-            horizon: Default::default(),
+            horizon: {
+                let mut graphics = crate::graphics::Graphics::default();
+                if cfg!(target_os = "android") {
+                    graphics.preset = crate::graphics::Preset::Performance;
+                    graphics.battery = true;
+                    graphics.chunk_updates = 8;
+                    graphics.upload_budget_kib = 2048;
+                    graphics.resolution_scale = 85;
+                }
+                graphics
+            },
             startup_api: Default::default(),
             video_modes: Vec::new(),
             controller: Default::default(),

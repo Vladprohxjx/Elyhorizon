@@ -1356,6 +1356,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "horizon-client-android"
+version = "0.1.0"
+dependencies = [
+ "horizon-client",
+ "horizon-threads",
+ "winit",
+]
+
+[[package]]
 name = "horizon-client-core"
 version = "0.1.0"
 dependencies = [

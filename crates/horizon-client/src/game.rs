@@ -326,6 +326,7 @@ mod trial_visuals;
 mod trident;
 mod tutorial;
 mod tweaks;
+mod touch;
 mod ui_control;
 mod vault;
 mod villagers;
@@ -2388,6 +2389,7 @@ struct Game<'a> {
     video_modes: horizon_client::window::VideoModeList,
     /// MouseHandler's accumulated look and wheel state.
     mouse: MouseLook,
+    touch: touch::TouchControls,
     /// An agent moved the mouse (`mouse-move`) since the pointer was last
     /// grabbed or released: its motion turns the view like a grabbed pointer.
     agent_pointer: bool,
@@ -8050,6 +8052,14 @@ impl Game<'_> {
         self.frame_graph
             .draw(self.settings.horizon.overlay, &mut batch, &self.gui.atlas);
         self.draw_pad_cursor(&mut batch);
+        #[cfg(target_os = "android")]
+        if self.screen == Screen::Playing
+            && self.title.is_none()
+            && self.player.is_some()
+            && !self.ui.hide_gui
+        {
+            self.touch.draw(&mut batch, &self.gui.atlas);
+        }
         self.resolve_inline_profiles(&batch.inline_profiles);
         batch
     }
@@ -16527,6 +16537,23 @@ fn autosave_interval(rate: f32) -> i64 {
     i64::from((rate * 300.0) as i32).max(100)
 }
 impl ApplicationHandler for Game<'_> {
+    #[cfg(target_os = "android")]
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        // Release the wgpu surface/device references while Android owns no
+        // native window. resumed() rebuilds them against the next ANativeWindow.
+        self.renderer = None;
+        self.window = None;
+        self.focused = false;
+        self.captured = false;
+        self.physical_keys.clear();
+        self.physical_buttons.clear();
+        self.drag_button = None;
+        self.touch.clear_contacts();
+        self.keys.clear();
+        self.left = false;
+        self.right = false;
+    }
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_some() {
             return;
@@ -16801,6 +16828,7 @@ impl Game<'_> {
                 | WindowEvent::MouseInput { .. }
                 | WindowEvent::MouseWheel { .. }
                 | WindowEvent::CursorMoved { .. }
+                | WindowEvent::Touch(_)
         ) {
             self.last_input = Instant::now();
         }
@@ -17071,6 +17099,7 @@ impl Game<'_> {
                         let held = self.captured;
                         if self.control.is_none() {
                             self.keys.clear();
+                            self.touch.clear_contacts();
                             // Latched sneak/sprint live in `toggles`, not in the
                             // physical keys: put them back so a short alt-tab
                             // (no pause screen) does not drop them. Only a mapping
@@ -17098,6 +17127,8 @@ impl Game<'_> {
                         self.regrab_on_refocus = held;
                     }
                 }
+                #[cfg(target_os = "android")]
+                WindowEvent::Touch(touch) => self.handle_touch(touch)?,
                 WindowEvent::CursorMoved { position, .. } => {
                     if let Some(r) = &self.renderer {
                         let b = HudBatch::new([r.config.width, r.config.height]);
@@ -18345,6 +18376,7 @@ impl<'a> Game<'a> {
             fullscreen: horizon_client::window::FullscreenState::new(false),
             video_modes: Default::default(),
             mouse: MouseLook::default(),
+            touch: touch::TouchControls::load(),
             agent_pointer: false,
             smooth_camera: false,
             toggles: Default::default(),
@@ -20335,6 +20367,17 @@ fn run_event_loop(mut game: Game<'_>) -> Result<()> {
         return game.error.take().map_or(Ok(()), Err);
     }
     let mut split = split::Split::new(game);
+    #[cfg(target_os = "android")]
+    let result = {
+        use winit::platform::android::EventLoopBuilderExtAndroid;
+        let app = ANDROID_APP
+            .with(|slot| slot.borrow().clone())
+            .ok_or("Android activity handle was not installed before starting winit")?;
+        let mut builder = EventLoop::builder();
+        builder.with_android_app(app);
+        builder.build()?.run_app(&mut split)
+    };
+    #[cfg(not(target_os = "android"))]
     let result = EventLoop::new()?.run_app(&mut split);
     game = split.host;
     narrator::stop();
@@ -20390,6 +20433,15 @@ impl Loading {
             || self.menu.pending.is_some()
             || self.ui_at.is_none_or(|at| at.elapsed() >= TITLE_FRAME_WAIT)
     }
+    #[cfg(target_os = "android")]
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        // The native ANativeWindow may be destroyed while the Activity is in
+        // the background. Drop the surface before winit receives a new one.
+        self.renderer = None;
+        self.window = None;
+        self.title_drawn = false;
+    }
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_some() {
             return;
@@ -20677,6 +20729,14 @@ enum App {
     Ready(Box<split::Split<'static>>),
 }
 impl ApplicationHandler for App {
+    #[cfg(target_os = "android")]
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+        match self {
+            App::Loading(loading) => loading.suspended(event_loop),
+            App::Ready(game) => game.suspended(event_loop),
+        }
+    }
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         match self {
             App::Loading(loading) => loading.resumed(event_loop),
@@ -20684,6 +20744,43 @@ impl ApplicationHandler for App {
         }
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        // Android has no mouse. Feed touch gestures into the existing pointer/UI
+        // path so title-screen and menu buttons remain the same widgets.
+        #[cfg(target_os = "android")]
+        if let WindowEvent::Touch(touch) = &event {
+            let device_id = touch.device_id;
+            let position = touch.location;
+            let phase = touch.phase;
+            self.window_event(
+                event_loop,
+                id,
+                WindowEvent::CursorMoved { device_id, position },
+            );
+            match phase {
+                winit::event::TouchPhase::Started => self.window_event(
+                    event_loop,
+                    id,
+                    WindowEvent::MouseInput {
+                        device_id,
+                        state: ElementState::Pressed,
+                        button: MouseButton::Left,
+                    },
+                ),
+                winit::event::TouchPhase::Ended | winit::event::TouchPhase::Cancelled => {
+                    self.window_event(
+                        event_loop,
+                        id,
+                        WindowEvent::MouseInput {
+                            device_id,
+                            state: ElementState::Released,
+                            button: MouseButton::Left,
+                        },
+                    );
+                }
+                winit::event::TouchPhase::Moved => {}
+            }
+            return;
+        }
         match self {
             App::Loading(loading) => loading.window_event(event_loop, id, event),
             App::Ready(game) => game.window_event(event_loop, id, event),
@@ -20802,6 +20899,17 @@ fn run_loading(
         error: None,
     };
     let mut app = App::Loading(Box::new(loading));
+    #[cfg(target_os = "android")]
+    let result = {
+        use winit::platform::android::EventLoopBuilderExtAndroid;
+        let android_app = ANDROID_APP
+            .with(|slot| slot.borrow().clone())
+            .ok_or("Android activity handle was not installed before starting winit")?;
+        let mut builder = EventLoop::builder();
+        builder.with_android_app(android_app);
+        builder.build()?.run_app(&mut app)
+    };
+    #[cfg(not(target_os = "android"))]
     let result = EventLoop::new()?.run_app(&mut app);
     narrator::stop();
     match &mut app {
@@ -20825,6 +20933,20 @@ fn run_loading(
         }
     }
     Ok(())
+}
+
+#[cfg(target_os = "android")]
+thread_local! {
+    // AndroidApp is tied to one Activity lifetime. Keep it on android_main's
+    // thread rather than in process-global state so Activity recreation works.
+    static ANDROID_APP: std::cell::RefCell<Option<winit::platform::android::activity::AndroidApp>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Supply the NativeActivity handle before starting the existing game loop.
+#[cfg(target_os = "android")]
+pub fn set_android_app(app: winit::platform::android::activity::AndroidApp) {
+    ANDROID_APP.with(|slot| *slot.borrow_mut() = Some(app));
 }
 
 pub use launch_api::{UsageError, exit_code};
