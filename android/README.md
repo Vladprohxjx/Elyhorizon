@@ -36,7 +36,7 @@ directory through Android Studio Device Explorer into
 
 - NativeActivity boot and winit event-loop handoff.
 - Vulkan/GLES-capable wgpu configuration inherited from the desktop renderer.
-- Multi-touch gameplay controls: a movable movement pad, right-side look, jump, attack, use, sneak and inventory buttons. Tap EDIT in-game to drag controls into place; positions are saved in app-private storage.
+- Multi-touch gameplay controls: a movable movement pad, right-side look, jump, attack, use, sneak, sprint, pause and inventory buttons. Tap EDIT in-game to drag controls into place; positions are saved in app-private storage.
 - Game data and save paths redirected into app-private storage.
 - No bundled Minecraft assets; import your own prepared 26.3 resources first.
 - Android audio, controller hotplug, background pause/resume stress testing and
