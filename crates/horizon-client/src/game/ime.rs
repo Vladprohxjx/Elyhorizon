@@ -49,6 +49,8 @@ impl Game<'_> {
             && let Some(window) = &self.window
         {
             window.set_ime_allowed(want);
+            #[cfg(target_os = "android")]
+            super::set_android_soft_input(want);
             self.ime_allowed = want;
             // The field lost the focus (or a new one took it): the composition
             // and the candidate window's place belong to the old one.
