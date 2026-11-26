@@ -231,7 +231,12 @@ impl Default for Settings {
             entity_distance: if cfg!(target_os = "android") { 0.5 } else { 1.0 },
             entity_shadows: !cfg!(target_os = "android"),
             biome_blend: if cfg!(target_os = "android") { 0 } else { 2 },
-            graphics_preset: if cfg!(target_os = "android") { "performance" } else { "fancy" }.into(),
+            graphics_preset: (if cfg!(target_os = "android") {
+                "performance"
+            } else {
+                "fancy"
+            })
+            .into(),
             mipmap_levels: if cfg!(target_os = "android") { 2 } else { 4 },
             weather_radius: if cfg!(target_os = "android") { 3 } else { 10 },
             chunk_fade: 0.75,
