@@ -292,6 +292,10 @@ impl super::Game<'_> {
         }
         let Some(renderer) = self.renderer.as_ref() else { return Ok(()); };
         let batch = HudBatch::new([renderer.config.width, renderer.config.height]);
+        let mut touch = touch;
+        let scale = f64::from(batch.scale);
+        touch.location.x /= scale;
+        touch.location.y /= scale;
         let actions = self.touch.handle(touch, batch.width, batch.height);
         for action in actions {
             match action {
