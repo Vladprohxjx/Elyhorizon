@@ -20335,6 +20335,18 @@ fn run_event_loop(mut game: Game<'_>) -> Result<()> {
         return game.error.take().map_or(Ok(()), Err);
     }
     let mut split = split::Split::new(game);
+    #[cfg(target_os = "android")]
+    let result = {
+        use winit::platform::android::EventLoopBuilderExtAndroid;
+        let app = ANDROID_APP
+            .get()
+            .cloned()
+            .ok_or("Android activity handle was not installed before starting winit")?;
+        let mut builder = EventLoop::builder();
+        builder.with_android_app(app);
+        builder.build()?.run_app(&mut split)
+    };
+    #[cfg(not(target_os = "android"))]
     let result = EventLoop::new()?.run_app(&mut split);
     game = split.host;
     narrator::stop();
@@ -20825,6 +20837,16 @@ fn run_loading(
         }
     }
     Ok(())
+}
+
+#[cfg(target_os = "android")]
+static ANDROID_APP: std::sync::OnceLock<winit::platform::android::activity::AndroidApp> =
+    std::sync::OnceLock::new();
+
+/// Supply the NativeActivity handle before starting the existing game loop.
+#[cfg(target_os = "android")]
+pub fn set_android_app(app: winit::platform::android::activity::AndroidApp) {
+    let _ = ANDROID_APP.set(app);
 }
 
 pub use launch_api::{UsageError, exit_code};
