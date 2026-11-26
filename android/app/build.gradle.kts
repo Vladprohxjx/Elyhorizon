@@ -27,7 +27,7 @@ val buildRust by tasks.registering(Exec::class) {
         "-o", "android/app/src/main/jniLibs",
         "build", "--release", "-p", "horizon-client-android",
     )
-    inputs.files(fileTree("../crates"), file("../Cargo.toml"), file("../Cargo.lock"))
+    inputs.files(fileTree("../../crates"), file("../../Cargo.toml"), file("../../Cargo.lock"))
     outputs.dir("src/main/jniLibs")
 }
 
