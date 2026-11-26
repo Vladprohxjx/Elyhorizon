@@ -2,10 +2,10 @@
 #![cfg(target_os = "android")]
 
 use std::path::PathBuf;
+use winit::platform::android::activity::AndroidApp;
 
 #[global_allocator]
 static ALLOCATOR: horizon_threads::Allocator = horizon_threads::Allocator;
-use winit::platform::android::activity::AndroidApp;
 
 /// Android's NativeActivity loader calls this symbol. Place all mutable game data
 /// under the app-private files directory, then hand the activity to winit.
@@ -16,14 +16,13 @@ fn android_main(app: AndroidApp) {
         .expect("Android did not provide an internal app data directory");
     std::fs::create_dir_all(&data_dir).expect("cannot create Horizon app data directory");
     std::env::set_current_dir(&data_dir).expect("cannot select Horizon app data directory");
-    // Edition 2024 marks process-wide environment mutation unsafe. This runs
-    // once, before Horizon starts worker threads.
-    unsafe {
-        std::env::set_var("HORIZON_HOME", data_dir.join("horizon"));
-        std::env::set_var("HOME", &data_dir);
-        std::env::set_var("XDG_DATA_HOME", data_dir.join(".local/share"));
-        std::env::set_var("XDG_CONFIG_HOME", data_dir.join(".config"));
-    }
+
+    // Set Horizon's own path overrides directly instead of mutating process-wide
+    // environment variables after android-activity has started its I/O thread.
+    let home = data_dir.join("horizon");
+    horizon_client::logging::set_game_home(home.clone());
+    horizon_client::logging::set_player_dir(home);
+
     horizon_client::game::set_android_app(app);
     horizon_client::entry::main();
 }
