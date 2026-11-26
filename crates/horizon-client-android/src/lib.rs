@@ -15,13 +15,11 @@ fn android_on_create(state: &winit::platform::android::activity::OnCreateState) 
         objects::{JObject, JValue},
     };
 
-    let Ok(vm) = (unsafe { JavaVM::from_raw(state.vm_as_ptr().cast()) }) else {
-        return;
-    };
+    let vm = unsafe { JavaVM::from_raw(state.vm_as_ptr().cast()) };
     let Ok(mut env) = vm.attach_current_thread() else {
         return;
     };
-    let activity = unsafe { JObject::from_raw(state.activity_as_ptr().cast()) };
+    let activity = unsafe { JObject::from_raw(&env, state.activity_as_ptr().cast()) };
     let Ok(window) = env
         .call_method(&activity, "getWindow", "()Landroid/view/Window;", &[])
         .and_then(|value| value.l())
