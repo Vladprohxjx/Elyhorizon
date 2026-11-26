@@ -2,7 +2,7 @@ name: Android NativeActivity
 
 on:
   push:
-    branches: ["android/**"]
+    branches: ["android/**",main]
   pull_request:
     branches: [main]
 
