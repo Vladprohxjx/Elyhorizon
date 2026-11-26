@@ -20880,6 +20880,17 @@ fn run_loading(
         error: None,
     };
     let mut app = App::Loading(Box::new(loading));
+    #[cfg(target_os = "android")]
+    let result = {
+        use winit::platform::android::EventLoopBuilderExtAndroid;
+        let android_app = ANDROID_APP
+            .with(|slot| slot.borrow().clone())
+            .ok_or("Android activity handle was not installed before starting winit")?;
+        let mut builder = EventLoop::builder();
+        builder.with_android_app(android_app);
+        builder.build()?.run_app(&mut app)
+    };
+    #[cfg(not(target_os = "android"))]
     let result = EventLoop::new()?.run_app(&mut app);
     narrator::stop();
     match &mut app {
