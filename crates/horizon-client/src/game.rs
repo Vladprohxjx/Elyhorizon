@@ -16544,6 +16544,10 @@ impl ApplicationHandler for Game<'_> {
         self.physical_keys.clear();
         self.physical_buttons.clear();
         self.drag_button = None;
+        self.touch.clear_contacts();
+        self.keys.clear();
+        self.left = false;
+        self.right = false;
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -17091,6 +17095,7 @@ impl Game<'_> {
                         let held = self.captured;
                         if self.control.is_none() {
                             self.keys.clear();
+                            self.touch.clear_contacts();
                             // Latched sneak/sprint live in `toggles`, not in the
                             // physical keys: put them back so a short alt-tab
                             // (no pause screen) does not drop them. Only a mapping
