@@ -20748,6 +20748,20 @@ impl ApplicationHandler for App {
         // path so title-screen and menu buttons remain the same widgets.
         #[cfg(target_os = "android")]
         if let WindowEvent::Touch(touch) = &event {
+            // In the world, preserve the real touch stream: converting it to a
+            // mouse click here swallowed it before Game::handle_touch could
+            // generate keyboard/mouse actions for the on-screen controls.
+            #[cfg(target_os = "android")]
+            if let App::Ready(game) = self
+                && game.host.screen == Screen::Playing
+                && game.host.title.is_none()
+                && game.host.player.is_some()
+            {
+                game.window_event(event_loop, id, WindowEvent::Touch(touch.clone()));
+                return;
+            }
+
+            // Menus and the loading screen still use the ordinary pointer widgets.
             let device_id = touch.device_id;
             let position = touch.location;
             let phase = touch.phase;
