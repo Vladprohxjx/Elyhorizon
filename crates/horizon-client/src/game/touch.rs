@@ -287,24 +287,6 @@ impl TouchControls {
         actions
     }
 
-    /// Whether this Android touch belongs to the persistent inventory-close control.
-    /// Other inventory touches must remain on the normal GUI mouse path.
-    pub(super) fn is_inventory_exit_touch(&self, touch: &Touch) -> bool {
-        if let Some(Contact::Button(Control::Inventory)) = self.contacts.get(&touch.id) {
-            return true;
-        }
-        if touch.phase != TouchPhase::Started {
-            return false;
-        }
-        let Some(renderer) = self.renderer.as_ref() else {
-            return false;
-        };
-        let batch = HudBatch::new([renderer.config.width, renderer.config.height]);
-        let scale = f64::from(batch.scale);
-        let point = [touch.location.x / scale, touch.location.y / scale];
-        self.touch.hit(Control::Inventory, point, batch.width, batch.height)
-    }
-
     /// Handle the persistent inventory-close button while the inventory screen is open.
     pub(super) fn handle_inventory_exit(&mut self, touch: Touch, width: f32, height: f32) -> Vec<Action> {
         let point = [touch.location.x, touch.location.y];
@@ -404,6 +386,24 @@ impl TouchControls {
 }
 
 impl super::Game<'_> {
+    /// Whether this Android touch belongs to the persistent inventory-close control.
+    /// Other inventory touches must remain on the normal GUI mouse path.
+    pub(super) fn is_inventory_exit_touch(&self, touch: &Touch) -> bool {
+        if let Some(Contact::Button(Control::Inventory)) = self.touch.contacts.get(&touch.id) {
+            return true;
+        }
+        if touch.phase != TouchPhase::Started {
+            return false;
+        }
+        let Some(renderer) = self.renderer.as_ref() else {
+            return false;
+        };
+        let batch = HudBatch::new([renderer.config.width, renderer.config.height]);
+        let scale = f64::from(batch.scale);
+        let point = [touch.location.x / scale, touch.location.y / scale];
+        self.touch.hit(Control::Inventory, point, batch.width, batch.height)
+    }
+
     pub(super) fn handle_touch(&mut self, touch: Touch) -> horizon_client::Result<()> {
         if self.screen == super::Screen::Inventory && self.title.is_none() && self.player.is_some() {
             let Some(renderer) = self.renderer.as_ref() else { return Ok(()); };
