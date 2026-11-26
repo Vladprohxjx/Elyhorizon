@@ -287,6 +287,38 @@ impl TouchControls {
         actions
     }
 
+    /// Handle the persistent inventory-close button while the inventory screen is open.
+    pub(super) fn handle_inventory_exit(&mut self, touch: Touch, width: f32, height: f32) -> Vec<Action> {
+        let point = [touch.location.x, touch.location.y];
+        let mut actions = Vec::new();
+        match touch.phase {
+            TouchPhase::Started => {
+                if self.hit(Control::Inventory, point, width, height) {
+                    self.contacts.insert(touch.id, Contact::Button(Control::Inventory));
+                    actions.push(Action::Key(KeyCode::KeyE, true));
+                }
+            }
+            TouchPhase::Ended | TouchPhase::Cancelled => {
+                if let Some(Contact::Button(Control::Inventory)) = self.contacts.remove(&touch.id) {
+                    actions.push(Action::Key(KeyCode::KeyE, false));
+                }
+            }
+            TouchPhase::Moved => {}
+        }
+        actions
+    }
+
+    /// Draw only the inventory-close button over the inventory screen.
+    pub(super) fn draw_inventory_exit(&self, batch: &mut HudBatch, atlas: &HudAtlas) {
+        let [nx, ny] = self.position(Control::Inventory);
+        let (x, y) = (nx * batch.width, ny * batch.height);
+        let edge = rgba(220, 230, 240, 190);
+        let base = rgba(20, 24, 30, 165);
+        batch.fill(atlas, x - 27.0, y - 27.0, 54.0, 54.0, edge);
+        batch.fill(atlas, x - 23.0, y - 23.0, 46.0, 46.0, base);
+        batch.text(atlas, "INV", x - 9.0, y - 4.0, u32::MAX, true);
+    }
+
     pub(super) fn cancel_all(&mut self) -> Vec<Action> {
         let mut actions = Vec::new();
         for (_, contact) in self.contacts.drain() {
@@ -355,6 +387,20 @@ impl TouchControls {
 
 impl super::Game<'_> {
     pub(super) fn handle_touch(&mut self, touch: Touch) -> horizon_client::Result<()> {
+        if self.screen == super::Screen::Inventory && self.title.is_none() && self.player.is_some() {
+            let Some(renderer) = self.renderer.as_ref() else { return Ok(()); };
+            let batch = HudBatch::new([renderer.config.width, renderer.config.height]);
+            let scale = f64::from(batch.scale);
+            let mut touch = touch;
+            touch.location.x /= scale;
+            touch.location.y /= scale;
+            for action in self.touch.handle_inventory_exit(touch, batch.width, batch.height) {
+                if let Action::Key(key, pressed) = action {
+                    self.mapped_key_event(key, pressed, false)?;
+                }
+            }
+            return Ok(());
+        }
         if self.screen != super::Screen::Playing || self.title.is_some() || self.player.is_none() {
             let actions = self.touch.cancel_all();
             for action in actions {
@@ -381,8 +427,10 @@ impl super::Game<'_> {
                     let sensitivity = f64::from(self.settings.sensitivity) * 0.35;
                     let dx = dx * sensitivity * if self.settings.invert_x { -1.0 } else { 1.0 };
                     let dy = dy * sensitivity * if self.settings.invert_y { -1.0 } else { 1.0 };
-                    self.yaw -= dx as f32;
-                    self.pitch = (self.pitch + dy as f32).clamp(-90.0, 90.0);
+                    // Touch drag follows the finger: dragging right turns right,
+                    // and dragging upward looks upward.
+                    self.yaw += dx as f32;
+                    self.pitch = (self.pitch - dy as f32).clamp(-90.0, 90.0);
                 }
             }
         }
