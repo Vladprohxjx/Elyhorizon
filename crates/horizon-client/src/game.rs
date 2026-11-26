@@ -20696,6 +20696,43 @@ impl ApplicationHandler for App {
         }
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        // Android has no mouse. Feed touch gestures into the existing pointer/UI
+        // path so title-screen and menu buttons remain the same widgets.
+        #[cfg(target_os = "android")]
+        if let WindowEvent::Touch(touch) = event {
+            let device_id = touch.device_id;
+            let position = touch.location;
+            let phase = touch.phase;
+            self.window_event(
+                event_loop,
+                id,
+                WindowEvent::CursorMoved { device_id, position },
+            );
+            match phase {
+                winit::event::TouchPhase::Started => self.window_event(
+                    event_loop,
+                    id,
+                    WindowEvent::MouseInput {
+                        device_id,
+                        state: ElementState::Pressed,
+                        button: MouseButton::Left,
+                    },
+                ),
+                winit::event::TouchPhase::Ended | winit::event::TouchPhase::Cancelled => {
+                    self.window_event(
+                        event_loop,
+                        id,
+                        WindowEvent::MouseInput {
+                            device_id,
+                            state: ElementState::Released,
+                            button: MouseButton::Left,
+                        },
+                    );
+                }
+                winit::event::TouchPhase::Moved => {}
+            }
+            return;
+        }
         match self {
             App::Loading(loading) => loading.window_event(event_loop, id, event),
             App::Ready(game) => game.window_event(event_loop, id, event),
