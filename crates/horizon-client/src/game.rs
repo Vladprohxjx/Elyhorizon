@@ -8053,12 +8053,14 @@ impl Game<'_> {
             .draw(self.settings.horizon.overlay, &mut batch, &self.gui.atlas);
         self.draw_pad_cursor(&mut batch);
         #[cfg(target_os = "android")]
-        if self.screen == Screen::Playing
-            && self.title.is_none()
-            && self.player.is_some()
-            && !self.ui.hide_gui
-        {
-            self.touch.draw(&mut batch, &self.gui.atlas);
+        if self.title.is_none() && self.player.is_some() {
+            if self.screen == Screen::Playing && !self.ui.hide_gui {
+                self.touch.draw(&mut batch, &self.gui.atlas);
+            } else if self.screen == Screen::Inventory {
+                // Keep a dedicated way out of the inventory even though the
+                // normal gameplay controls are hidden while a screen is open.
+                self.touch.draw_inventory_exit(&mut batch, &self.gui.atlas);
+            }
         }
         self.resolve_inline_profiles(&batch.inline_profiles);
         batch
@@ -20961,6 +20963,20 @@ thread_local! {
 #[cfg(target_os = "android")]
 pub fn set_android_app(app: winit::platform::android::activity::AndroidApp) {
     ANDROID_APP.with(|slot| *slot.borrow_mut() = Some(app));
+}
+
+/// Show or hide Android's soft keyboard when a game text field gains or loses focus.
+#[cfg(target_os = "android")]
+pub(super) fn set_android_soft_input(show: bool) {
+    ANDROID_APP.with(|slot| {
+        if let Some(app) = slot.borrow().as_ref() {
+            if show {
+                app.show_soft_input(true);
+            } else {
+                app.hide_soft_input(false);
+            }
+        }
+    });
 }
 
 pub use launch_api::{UsageError, exit_code};
