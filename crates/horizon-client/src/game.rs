@@ -8053,7 +8053,11 @@ impl Game<'_> {
             .draw(self.settings.horizon.overlay, &mut batch, &self.gui.atlas);
         self.draw_pad_cursor(&mut batch);
         #[cfg(target_os = "android")]
-        if self.screen == Screen::Playing && self.title.is_none() && self.player.is_some() && !self.ui.hide_gui {
+        if self.screen == Screen::Playing
+            && self.title.is_none()
+            && self.player.is_some()
+            && !self.ui.hide_gui
+        {
             self.touch.draw(&mut batch, &self.gui.atlas);
         }
         self.resolve_inline_profiles(&batch.inline_profiles);
