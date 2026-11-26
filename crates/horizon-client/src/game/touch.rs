@@ -17,11 +17,20 @@ enum Control {
     Use,
     Sneak,
     Inventory,
+    Sprint,
+    Pause,
 }
 
 impl Control {
-    const ALL: [Self; 6] = [
-        Self::Stick, Self::Jump, Self::Attack, Self::Use, Self::Sneak, Self::Inventory,
+    const ALL: [Self; 8] = [
+        Self::Stick,
+        Self::Jump,
+        Self::Attack,
+        Self::Use,
+        Self::Sneak,
+        Self::Inventory,
+        Self::Sprint,
+        Self::Pause,
     ];
 
     fn name(self) -> &'static str {
@@ -32,6 +41,8 @@ impl Control {
             Self::Use => "use",
             Self::Sneak => "sneak",
             Self::Inventory => "inventory",
+            Self::Sprint => "sprint",
+            Self::Pause => "pause",
         }
     }
 
@@ -43,6 +54,8 @@ impl Control {
             Self::Use => "USE",
             Self::Sneak => "SNEAK",
             Self::Inventory => "INV",
+            Self::Sprint => "RUN",
+            Self::Pause => "PAUSE",
         }
     }
 
@@ -54,6 +67,8 @@ impl Control {
             Self::Use => [0.88, 0.61],
             Self::Sneak => [0.75, 0.61],
             Self::Inventory => [0.94, 0.43],
+            Self::Sprint => [0.63, 0.61],
+            Self::Pause => [0.96, 0.25],
         }
     }
 }
@@ -144,8 +159,9 @@ impl TouchControls {
             Control::Sneak => Some(Action::Key(KeyCode::ShiftLeft, pressed)),
             Control::Attack => Some(Action::Mouse(MouseButton::Left, pressed)),
             Control::Use => Some(Action::Mouse(MouseButton::Right, pressed)),
-            Control::Inventory if pressed => Some(Action::Key(KeyCode::KeyE, true)),
-            Control::Inventory => Some(Action::Key(KeyCode::KeyE, false)),
+            Control::Inventory => Some(Action::Key(KeyCode::KeyE, pressed)),
+            Control::Sprint => Some(Action::Key(KeyCode::ControlLeft, pressed)),
+            Control::Pause => Some(Action::Key(KeyCode::Escape, pressed)),
             Control::Stick => None,
         }
     }
@@ -207,6 +223,8 @@ impl TouchControls {
                     Control::Use,
                     Control::Sneak,
                     Control::Inventory,
+                    Control::Sprint,
+                    Control::Pause,
                 ]
                     .into_iter()
                     .find(|&c| self.hit(c, point, width, height))
@@ -307,6 +325,8 @@ impl TouchControls {
             Control::Use,
             Control::Sneak,
             Control::Inventory,
+            Control::Sprint,
+            Control::Pause,
         ] {
             let [nx, ny] = self.position(control);
             let (x, y) = (nx * w, ny * h);
