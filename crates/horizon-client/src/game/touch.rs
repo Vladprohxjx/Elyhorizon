@@ -445,10 +445,10 @@ impl super::Game<'_> {
                     let sensitivity = f64::from(self.settings.sensitivity) * 0.35;
                     let dx = dx * sensitivity * if self.settings.invert_x { -1.0 } else { 1.0 };
                     let dy = dy * sensitivity * if self.settings.invert_y { -1.0 } else { 1.0 };
-                    // Touch drag follows the finger: dragging right turns right,
-                    // and dragging upward looks upward.
-                    self.yaw += dx as f32;
-                    self.pitch = (self.pitch - dy as f32).clamp(-90.0, 90.0);
+                    // Match the native mouse convention: dragging right and
+                    // dragging upward move the view in the opposite direction.
+                    self.yaw -= dx as f32;
+                    self.pitch = (self.pitch + dy as f32).clamp(-90.0, 90.0);
                 }
             }
         }
