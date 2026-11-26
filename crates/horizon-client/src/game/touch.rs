@@ -185,18 +185,31 @@ impl TouchControls {
         match touch.phase {
             TouchPhase::Started => {
                 let edit_button = [f64::from(width * 0.96), f64::from(height * 0.08)];
-                if (point[0] - edit_button[0]).powi(2) + (point[1] - edit_button[1]).powi(2) < 28.0_f64.powi(2) {
+                if (point[0] - edit_button[0]).powi(2)
+                    + (point[1] - edit_button[1]).powi(2)
+                    < 28.0_f64.powi(2)
+                {
                     self.editing = !self.editing;
                     return actions;
                 }
                 if self.editing {
-                    if let Some(control) = Control::ALL.into_iter().find(|&c| self.hit(c, point, width, height)) {
+                    if let Some(control) = Control::ALL
+                        .into_iter()
+                        .find(|&c| self.hit(c, point, width, height))
+                    {
                         self.contacts.insert(touch.id, Contact::Drag(control));
                     }
                     return actions;
                 }
-                if let Some(control) = [Control::Jump, Control::Attack, Control::Use, Control::Sneak, Control::Inventory]
-                    .into_iter().find(|&c| self.hit(c, point, width, height))
+                if let Some(control) = [
+                    Control::Jump,
+                    Control::Attack,
+                    Control::Use,
+                    Control::Sneak,
+                    Control::Inventory,
+                ]
+                    .into_iter()
+                    .find(|&c| self.hit(c, point, width, height))
                 {
                     self.contacts.insert(touch.id, Contact::Button(control));
                     if let Some(action) = Self::button_action(control, true) {
@@ -288,7 +301,13 @@ impl TouchControls {
         batch.fill(atlas, sx - 54.0, sy - 54.0, 108.0, 108.0, base);
         batch.fill(atlas, sx - 20.0, sy - 20.0, 40.0, 40.0, edge);
         batch.fill(atlas, sx - 16.0, sy - 16.0, 32.0, 32.0, base);
-        for control in [Control::Jump, Control::Attack, Control::Use, Control::Sneak, Control::Inventory] {
+        for control in [
+            Control::Jump,
+            Control::Attack,
+            Control::Use,
+            Control::Sneak,
+            Control::Inventory,
+        ] {
             let [nx, ny] = self.position(control);
             let (x, y) = (nx * w, ny * h);
             batch.fill(atlas, x - 27.0, y - 27.0, 54.0, 54.0, edge);
@@ -300,7 +319,14 @@ impl TouchControls {
         let (ex, ey) = (w * 0.96, h * 0.08);
         batch.fill(atlas, ex - 18.0, ey - 18.0, 36.0, 36.0, edge);
         batch.fill(atlas, ex - 15.0, ey - 15.0, 30.0, 30.0, base);
-        batch.text(atlas, if self.editing { "OK" } else { "EDIT" }, ex - if self.editing { 6.0 } else { 12.0 }, ey - 4.0, u32::MAX, true);
+        batch.text(
+            atlas,
+            if self.editing { "OK" } else { "EDIT" },
+            ex - if self.editing { 6.0 } else { 12.0 },
+            ey - 4.0,
+            u32::MAX,
+            true,
+        );
         if self.editing {
             batch.text(atlas, "DRAG BUTTONS TO MOVE", w * 0.5 - 70.0, h * 0.08, u32::MAX, true);
         }
