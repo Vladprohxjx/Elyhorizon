@@ -326,6 +326,7 @@ mod trial_visuals;
 mod trident;
 mod tutorial;
 mod tweaks;
+mod touch;
 mod ui_control;
 mod vault;
 mod villagers;
@@ -2388,6 +2389,7 @@ struct Game<'a> {
     video_modes: horizon_client::window::VideoModeList,
     /// MouseHandler's accumulated look and wheel state.
     mouse: MouseLook,
+    touch: touch::TouchControls,
     /// An agent moved the mouse (`mouse-move`) since the pointer was last
     /// grabbed or released: its motion turns the view like a grabbed pointer.
     agent_pointer: bool,
@@ -8050,6 +8052,14 @@ impl Game<'_> {
         self.frame_graph
             .draw(self.settings.horizon.overlay, &mut batch, &self.gui.atlas);
         self.draw_pad_cursor(&mut batch);
+        #[cfg(target_os = "android")]
+        if self.screen == Screen::Playing
+            && self.title.is_none()
+            && self.player.is_some()
+            && !self.ui.hide_gui
+        {
+            self.touch.draw(&mut batch, &self.gui.atlas);
+        }
         self.resolve_inline_profiles(&batch.inline_profiles);
         batch
     }
@@ -16538,6 +16548,10 @@ impl ApplicationHandler for Game<'_> {
         self.physical_keys.clear();
         self.physical_buttons.clear();
         self.drag_button = None;
+        self.touch.clear_contacts();
+        self.keys.clear();
+        self.left = false;
+        self.right = false;
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -16814,6 +16828,7 @@ impl Game<'_> {
                 | WindowEvent::MouseInput { .. }
                 | WindowEvent::MouseWheel { .. }
                 | WindowEvent::CursorMoved { .. }
+                | WindowEvent::Touch(_)
         ) {
             self.last_input = Instant::now();
         }
@@ -17084,6 +17099,7 @@ impl Game<'_> {
                         let held = self.captured;
                         if self.control.is_none() {
                             self.keys.clear();
+                            self.touch.clear_contacts();
                             // Latched sneak/sprint live in `toggles`, not in the
                             // physical keys: put them back so a short alt-tab
                             // (no pause screen) does not drop them. Only a mapping
@@ -17111,6 +17127,8 @@ impl Game<'_> {
                         self.regrab_on_refocus = held;
                     }
                 }
+                #[cfg(target_os = "android")]
+                WindowEvent::Touch(touch) => self.handle_touch(touch)?,
                 WindowEvent::CursorMoved { position, .. } => {
                     if let Some(r) = &self.renderer {
                         let b = HudBatch::new([r.config.width, r.config.height]);
@@ -18358,6 +18376,7 @@ impl<'a> Game<'a> {
             fullscreen: horizon_client::window::FullscreenState::new(false),
             video_modes: Default::default(),
             mouse: MouseLook::default(),
+            touch: touch::TouchControls::load(),
             agent_pointer: false,
             smooth_camera: false,
             toggles: Default::default(),
@@ -20880,6 +20899,17 @@ fn run_loading(
         error: None,
     };
     let mut app = App::Loading(Box::new(loading));
+    #[cfg(target_os = "android")]
+    let result = {
+        use winit::platform::android::EventLoopBuilderExtAndroid;
+        let android_app = ANDROID_APP
+            .with(|slot| slot.borrow().clone())
+            .ok_or("Android activity handle was not installed before starting winit")?;
+        let mut builder = EventLoop::builder();
+        builder.with_android_app(android_app);
+        builder.build()?.run_app(&mut app)
+    };
+    #[cfg(not(target_os = "android"))]
     let result = EventLoop::new()?.run_app(&mut app);
     narrator::stop();
     match &mut app {

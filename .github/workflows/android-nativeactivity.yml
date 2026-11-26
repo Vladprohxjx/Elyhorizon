@@ -25,6 +25,23 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: "platforms;android-35 ndk;27.2.12479018"
+      # Keep the debug signing identity stable between CI builds so users can
+      # update the installed APK without uninstalling and losing app-private worlds/assets.
+      - name: Restore stable Android debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+      - name: Create Android debug keystore if missing
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -v -noprompt -storetype JKS \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
       - name: Build native library
