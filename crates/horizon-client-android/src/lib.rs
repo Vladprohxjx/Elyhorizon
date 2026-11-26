@@ -11,36 +11,46 @@ static ALLOCATOR: horizon_threads::Allocator = horizon_threads::Allocator;
 #[unsafe(no_mangle)]
 fn android_on_create(state: &winit::platform::android::activity::OnCreateState) {
     use jni::{
-        JavaVM,
+        JavaVM, jni_sig, jni_str,
         objects::{JObject, JValue},
     };
 
     let vm = unsafe { JavaVM::from_raw(state.vm_as_ptr().cast()) };
-    let Ok(mut env) = vm.attach_current_thread() else {
-        return;
-    };
-    let activity = unsafe { JObject::from_raw(&env, state.activity_as_ptr().cast()) };
-    let Ok(window) = env
-        .call_method(&activity, "getWindow", "()Landroid/view/Window;", &[])
-        .and_then(|value| value.l())
-    else {
-        return;
-    };
-    let Ok(decor) = env
-        .call_method(&window, "getDecorView", "()Landroid/view/View;", &[])
-        .and_then(|value| value.l())
-    else {
-        return;
-    };
+    let _ = vm.attach_current_thread(|env| {
+        let activity = unsafe { JObject::from_raw(env, state.activity_as_ptr().cast()) };
+        let Ok(window) = env
+            .call_method(
+                &activity,
+                jni_str!("getWindow"),
+                jni_sig!("()Landroid/view/Window;"),
+                &[],
+            )
+            .and_then(|value| value.l())
+        else {
+            return Ok(());
+        };
+        let Ok(decor) = env
+            .call_method(
+                &window,
+                jni_str!("getDecorView"),
+                jni_sig!("()Landroid/view/View;"),
+                &[],
+            )
+            .and_then(|value| value.l())
+        else {
+            return Ok(());
+        };
 
-    // LAYOUT_STABLE | LAYOUT_HIDE_NAVIGATION | LAYOUT_FULLSCREEN |
-    // HIDE_NAVIGATION | FULLSCREEN | IMMERSIVE_STICKY.
-    let _ = env.call_method(
-        &decor,
-        "setSystemUiVisibility",
-        "(I)V",
-        &[JValue::Int(0x1706)],
-    );
+        // LAYOUT_STABLE | LAYOUT_HIDE_NAVIGATION | LAYOUT_FULLSCREEN |
+        // HIDE_NAVIGATION | FULLSCREEN | IMMERSIVE_STICKY.
+        let _ = env.call_method(
+            &decor,
+            jni_str!("setSystemUiVisibility"),
+            jni_sig!("(I)V"),
+            &[JValue::Int(0x1706)],
+        );
+        Ok::<(), jni::errors::Error>(())
+    });
 }
 
 /// Android's NativeActivity loader calls this symbol. Place all mutable game data
