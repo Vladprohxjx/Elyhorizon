@@ -20699,7 +20699,7 @@ impl ApplicationHandler for App {
         // Android has no mouse. Feed touch gestures into the existing pointer/UI
         // path so title-screen and menu buttons remain the same widgets.
         #[cfg(target_os = "android")]
-        if let WindowEvent::Touch(touch) = event {
+        if let WindowEvent::Touch(touch) = &event {
             let device_id = touch.device_id;
             let position = touch.location;
             let phase = touch.phase;
