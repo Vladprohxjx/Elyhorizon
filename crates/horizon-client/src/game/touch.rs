@@ -211,6 +211,7 @@ impl TouchControls {
                 }
             }
             TouchPhase::Moved => {
+                let next_stick = self.stick_keys(point, width, height);
                 match self.contacts.get_mut(&touch.id) {
                     Some(Contact::Drag(control)) => {
                         let control = *control;
@@ -229,9 +230,8 @@ impl TouchControls {
                         actions.push(Action::Look(dx, dy));
                     }
                     Some(Contact::Stick(previous)) => {
-                        let next = self.stick_keys(point, width, height);
-                        Self::key_diff(previous, &next, &mut actions);
-                        *previous = next;
+                        Self::key_diff(previous, &next_stick, &mut actions);
+                        *previous = next_stick;
                     }
                     _ => {}
                 }
