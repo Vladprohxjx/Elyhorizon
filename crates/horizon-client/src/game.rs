@@ -16527,6 +16527,19 @@ fn autosave_interval(rate: f32) -> i64 {
     i64::from((rate * 300.0) as i32).max(100)
 }
 impl ApplicationHandler for Game<'_> {
+    #[cfg(target_os = "android")]
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        // Release the wgpu surface/device references while Android owns no
+        // native window. resumed() rebuilds them against the next ANativeWindow.
+        self.renderer = None;
+        self.window = None;
+        self.focused = false;
+        self.captured = false;
+        self.physical_keys.clear();
+        self.physical_buttons.clear();
+        self.drag_button = None;
+    }
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_some() {
             return;
@@ -20401,6 +20414,15 @@ impl Loading {
             || self.menu.pending.is_some()
             || self.ui_at.is_none_or(|at| at.elapsed() >= TITLE_FRAME_WAIT)
     }
+    #[cfg(target_os = "android")]
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        // The native ANativeWindow may be destroyed while the Activity is in
+        // the background. Drop the surface before winit receives a new one.
+        self.renderer = None;
+        self.window = None;
+        self.title_drawn = false;
+    }
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_some() {
             return;
@@ -20688,6 +20710,14 @@ enum App {
     Ready(Box<split::Split<'static>>),
 }
 impl ApplicationHandler for App {
+    #[cfg(target_os = "android")]
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+        match self {
+            App::Loading(loading) => loading.suspended(event_loop),
+            App::Ready(game) => game.suspended(event_loop),
+        }
+    }
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         match self {
             App::Loading(loading) => loading.resumed(event_loop),
