@@ -642,7 +642,11 @@ pub struct Graphics {
 impl Default for Graphics {
     fn default() -> Self {
         Self {
-            preset: Preset::Custom,
+            preset: if cfg!(target_os = "android") {
+                Preset::Performance
+            } else {
+                Preset::Custom
+            },
             lod_distance: 0,
             far_detail: FarDetail::Full,
             blue_map: crate::bluemap::Settings::default(),
@@ -657,8 +661,8 @@ impl Default for Graphics {
             cache_chests: false,
             cache_banners: false,
             cache_copper_golem_statues: false,
-            chunk_updates: 0,
-            upload_budget_kib: 0,
+            chunk_updates: if cfg!(target_os = "android") { 8 } else { 0 },
+            upload_budget_kib: if cfg!(target_os = "android") { 2048 } else { 0 },
             texture_budget_mib: 0,
             sky: true,
             fog: true,
@@ -669,7 +673,7 @@ impl Default for Graphics {
             pacing: Pacing::Efficient,
             workers: 0,
             overlay: Overlay::Off,
-            resolution_scale: 100,
+            resolution_scale: if cfg!(target_os = "android") { 85 } else { 100 },
             fxaa: false,
             taa: false,
             upscaling: Upscaling::Native,
@@ -681,7 +685,7 @@ impl Default for Graphics {
             hdr_black_level: 0,
             hdr_ui_brightness: 100,
             hdr_key: "key.keyboard.unknown".into(),
-            battery: false,
+            battery: cfg!(target_os = "android"),
             shadow_cache: false,
             api: GraphicsApi::Auto,
             translucent_batching: true,
