@@ -1,0 +1,43 @@
+name: Android NativeActivity
+
+on:
+  push:
+    branches: ["android/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  android-arm64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-35 ndk;27.2.12479018"
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Build native library
+        run: cargo ndk -t arm64-v8a -o android/app/src/main/jniLibs build --release --locked -p horizon-client-android
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Assemble APK
+        working-directory: android
+        run: gradle :app:assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizon-android-arm64-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
