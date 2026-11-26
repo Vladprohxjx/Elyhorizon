@@ -11,6 +11,12 @@ static ALLOCATOR: horizon_threads::Allocator = horizon_threads::Allocator;
 /// under the app-private files directory, then hand the activity to winit.
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
+    // Keep Android's status bar out of the game surface.
+    app.set_window_flags(
+        winit::platform::android::activity::WindowManagerFlags::FULLSCREEN,
+        winit::platform::android::activity::WindowManagerFlags::empty(),
+    );
+
     let data_dir: PathBuf = app
         .internal_data_path()
         .expect("Android did not provide an internal app data directory");
