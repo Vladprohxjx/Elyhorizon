@@ -2,6 +2,9 @@
 #![cfg(target_os = "android")]
 
 use std::path::PathBuf;
+
+#[global_allocator]
+static ALLOCATOR: horizon_threads::Allocator = horizon_threads::Allocator;
 use winit::platform::android::activity::AndroidApp;
 
 /// Android's NativeActivity loader calls this symbol. Place all mutable game data
