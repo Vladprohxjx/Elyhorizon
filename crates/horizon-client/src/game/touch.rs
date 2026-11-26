@@ -73,7 +73,7 @@ impl Control {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 enum Contact {
     Button(Control),
     Drag(Control),
