@@ -20755,15 +20755,20 @@ impl ApplicationHandler for App {
             // generate keyboard/mouse actions for the on-screen controls.
             #[cfg(target_os = "android")]
             if let App::Ready(game) = self
-                && game.host.screen == Screen::Playing
                 && game.host.title.is_none()
                 && game.host.player.is_some()
+                && (game.host.screen == Screen::Playing
+                    || (game.host.screen == Screen::Inventory
+                        && game.host.is_inventory_exit_touch(touch)))
             {
+                // Gameplay controls receive the raw touch stream. In the
+                // inventory, only the persistent close button is intercepted;
+                // slot taps and text fields remain ordinary GUI pointer input.
                 game.window_event(event_loop, id, WindowEvent::Touch(touch.clone()));
                 return;
             }
 
-            // Menus and the loading screen still use the ordinary pointer widgets.
+            // Menus and the rest of the inventory still use the ordinary pointer widgets.
             let device_id = touch.device_id;
             let position = touch.location;
             let phase = touch.phase;
