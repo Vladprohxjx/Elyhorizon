@@ -232,7 +232,7 @@ impl Default for Settings {
             entity_shadows: !cfg!(target_os = "android"),
             biome_blend: if cfg!(target_os = "android") { 0 } else { 2 },
             graphics_preset: (if cfg!(target_os = "android") {
-                "performance"
+                "fast"
             } else {
                 "fancy"
             })
