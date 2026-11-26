@@ -35,3 +35,9 @@
 
 # Release-only compiled original exporter bundle.
 /exporters/
+
+# Android/Gradle outputs and locally installed SDK paths.
+/android/.gradle/
+/android/local.properties
+/android/app/build/
+/android/app/src/main/jniLibs/
